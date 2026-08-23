@@ -216,7 +216,7 @@ export default function DashboardView({ applications, onAddClick, onViewClick, u
               ) : (
                 <div className="timeline-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-lg)', borderStyle: 'dashed', textAlign: 'center' }}>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
-                    No upcoming interviews scheduled.
+                    No upcoming interviews scheduled. Mark an application status as 'Interview' or add an interview date to display it here.
                   </p>
                 </div>
               )}
