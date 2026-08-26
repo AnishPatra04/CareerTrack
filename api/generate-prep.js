@@ -26,7 +26,7 @@ const makeGeminiRequest = async (apiKey, prompt, model) => {
 };
 
 const fetchWithRetry = async (apiKey, prompt) => {
-  const modelsToTry = ['gemini-3.7-flash', 'gemini-3.5-flash', 'gemini-2.5-flash'];
+  const modelsToTry = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash'];
   const maxRetries = 2;
   const transientStatuses = [429, 500, 502, 503, 504];
   let lastError;
