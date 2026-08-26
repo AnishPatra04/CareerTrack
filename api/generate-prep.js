@@ -68,6 +68,17 @@ const fetchWithRetry = async (apiKey, prompt) => {
 };
 
 export default async function handler(req, res) {
+  // Safe diagnostic endpoint to check environment variables on Vercel
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      envKeys: Object.keys(process.env).sort(),
+      hasGeminiKey: !!process.env.GEMINI_API_KEY,
+      geminiKeyLength: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.length : 0,
+      geminiKeyType: typeof process.env.GEMINI_API_KEY,
+      nodeEnv: process.env.NODE_ENV
+    });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
