@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, TrendingUp, HelpCircle } from 'lucide-react';
+import { BarChart3, TrendingUp } from 'lucide-react';
 import EmptyState from './EmptyState';
 
 export default function AnalyticsView({ applications }) {

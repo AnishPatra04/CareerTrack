@@ -78,15 +78,6 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen, us
           </div>
         </div>
       </aside>
-      
-      {/* Inline styles override to show sidebar close button on mobile */}
-      <style dangerouslySetInnerHTML={{__html: `
-        @media (max-width: 1024px) {
-          .sidebar .modal-close-btn {
-            display: flex !important;
-          }
-        }
-      `}} />
     </>
   );
 }

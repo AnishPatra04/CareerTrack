@@ -1,34 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getInitialFormState = () => ({
+  company: '',
+  position: '',
+  location: '',
+  jobType: 'Full-time',
+  status: 'Applied',
+  dateApplied: getLocalDateString(),
+  salary: '',
+  interviewDate: '',
+  jobUrl: '',
+  notes: ''
+});
+
 export default function ApplicationFormModal({ isOpen, onClose, onSave, applicationToEdit }) {
   const isEdit = !!applicationToEdit;
-  
-  const getLocalDateString = () => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
 
-  const initialFormState = {
-    company: '',
-    position: '',
-    location: '',
-    jobType: 'Full-time',
-    status: 'Applied',
-    dateApplied: getLocalDateString(),
-    salary: '',
-    interviewDate: '',
-    jobUrl: '',
-    notes: ''
-  };
-
-  const [formData, setFormData] = useState(initialFormState);
+  const [prevApplicationToEdit, setPrevApplicationToEdit] = useState(applicationToEdit);
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  const [formData, setFormData] = useState(getInitialFormState);
   const [errors, setErrors] = useState({});
 
-  useEffect(() => {
+  if (applicationToEdit !== prevApplicationToEdit || isOpen !== prevIsOpen) {
+    setPrevApplicationToEdit(applicationToEdit);
+    setPrevIsOpen(isOpen);
+    
     if (isEdit && applicationToEdit) {
       setFormData({
         company: applicationToEdit.company || '',
@@ -42,12 +47,11 @@ export default function ApplicationFormModal({ isOpen, onClose, onSave, applicat
         jobUrl: applicationToEdit.jobUrl || '',
         notes: applicationToEdit.notes || ''
       });
-      setErrors({});
     } else {
-      setFormData(initialFormState);
-      setErrors({});
+      setFormData(getInitialFormState());
     }
-  }, [isEdit, applicationToEdit, isOpen]);
+    setErrors({});
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -65,14 +69,34 @@ export default function ApplicationFormModal({ isOpen, onClose, onSave, applicat
     }
   };
 
-  // URL Validation helper
+  // URL Validation helper: Only allow http: and https: protocols, reject unsafe schemes like javascript: or data:
   const isValidUrl = (url) => {
     if (!url) return true;
+    const trimmed = url.trim();
+
+    // Check if the URL starts with a scheme that is NOT http/https
+    // Schemes start with a letter and contain only letters, numbers, plus, minus, or dot, followed by a colon.
+    const schemeMatch = trimmed.match(/^([a-z0-9+.-]+):/i);
+    if (schemeMatch) {
+      const scheme = schemeMatch[1].toLowerCase();
+      const rest = trimmed.substring(schemeMatch[0].length);
+      const isPort = /^\d+($|\/)/.test(rest);
+      const isLocalhost = scheme === 'localhost';
+      const hasDot = scheme.includes('.');
+      
+      if (!isPort && !isLocalhost && !hasDot) {
+        if (scheme !== 'http' && scheme !== 'https') {
+          return false;
+        }
+      }
+    }
+
+    // Verify it can be parsed as a valid URL
     try {
-      const tempUrl = url.startsWith('http://') || url.startsWith('https://') ? url : 'https://' + url;
-      new URL(tempUrl);
+      const hasScheme = /^https?:\/\//i.test(trimmed);
+      new URL(hasScheme ? trimmed : 'https://' + trimmed);
       return true;
-    } catch (_) {
+    } catch {
       return false;
     }
   };

@@ -94,8 +94,35 @@ export default function App() {
   // ==========================================================================
   // 2. React State Definitions
   // ==========================================================================
-  const [applications, setApplications] = useState([]);
-  const [userSettings, setUserSettings] = useState(DEFAULT_SETTINGS);
+  const [applications, setApplications] = useState(() => {
+    try {
+      const storedApps = localStorage.getItem('careertrack_applications');
+      if (storedApps) {
+        return JSON.parse(storedApps);
+      } else {
+        localStorage.setItem('careertrack_applications', JSON.stringify(INITIAL_DEMO_APPLICATIONS));
+        return INITIAL_DEMO_APPLICATIONS;
+      }
+    } catch (e) {
+      console.error('Error loading applications from localStorage, resetting with demo data', e);
+      return INITIAL_DEMO_APPLICATIONS;
+    }
+  });
+
+  const [userSettings, setUserSettings] = useState(() => {
+    try {
+      const storedSettings = localStorage.getItem('careertrack_settings');
+      if (storedSettings) {
+        return JSON.parse(storedSettings);
+      } else {
+        localStorage.setItem('careertrack_settings', JSON.stringify(DEFAULT_SETTINGS));
+        return DEFAULT_SETTINGS;
+      }
+    } catch (e) {
+      console.error('Error loading settings from localStorage, fallback to defaults', e);
+      return DEFAULT_SETTINGS;
+    }
+  });
   
   // Navigation & Menu drawers
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -112,46 +139,17 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
 
   // ==========================================================================
-  // 3. Application Initialization & LocalStorage loading
+  // 3. Application Initialization & DOM configuration
   // ==========================================================================
   useEffect(() => {
-    // 3a. Initialize user settings
-    try {
-      const storedSettings = localStorage.getItem('careertrack_settings');
-      if (storedSettings) {
-        const parsedSettings = JSON.parse(storedSettings);
-        setUserSettings(parsedSettings);
-        
-        // Immediately apply theme and compact mode settings
-        document.documentElement.setAttribute('data-theme', parsedSettings.theme || 'light');
-        if (parsedSettings.compactMode) {
-          document.body.classList.add('compact-mode');
-        } else {
-          document.body.classList.remove('compact-mode');
-        }
-      } else {
-        localStorage.setItem('careertrack_settings', JSON.stringify(DEFAULT_SETTINGS));
-      }
-    } catch (e) {
-      console.error('Error loading settings from localStorage, fallback to defaults', e);
-      setUserSettings(DEFAULT_SETTINGS);
+    // Apply theme and compact mode settings on mount
+    document.documentElement.setAttribute('data-theme', userSettings.theme || 'light');
+    if (userSettings.compactMode) {
+      document.body.classList.add('compact-mode');
+    } else {
+      document.body.classList.remove('compact-mode');
     }
-
-    // 3b. Initialize applications
-    try {
-      const storedApps = localStorage.getItem('careertrack_applications');
-      if (storedApps) {
-        setApplications(JSON.parse(storedApps));
-      } else {
-        // First startup: write initial demo records to local storage & state
-        localStorage.setItem('careertrack_applications', JSON.stringify(INITIAL_DEMO_APPLICATIONS));
-        setApplications(INITIAL_DEMO_APPLICATIONS);
-      }
-    } catch (e) {
-      console.error('Error loading applications from localStorage, resetting with demo data', e);
-      setApplications(INITIAL_DEMO_APPLICATIONS);
-    }
-  }, []);
+  }, [userSettings.theme, userSettings.compactMode]);
 
   // Sync page title with tab selection
   useEffect(() => {
@@ -231,6 +229,17 @@ export default function App() {
     }
 
     triggerToast('info', 'Application Deleted', 'The job application was permanently deleted.');
+  };
+
+  const handleUpdateApplication = (updatedApp) => {
+    const updatedApps = applications.map((app) => 
+      app.id === updatedApp.id ? updatedApp : app
+    );
+    setApplications(updatedApps);
+    localStorage.setItem('careertrack_applications', JSON.stringify(updatedApps));
+    if (viewingApplication && viewingApplication.id === updatedApp.id) {
+      setViewingApplication(updatedApp);
+    }
   };
 
   // Helper modals toggles
@@ -360,6 +369,7 @@ export default function App() {
           setViewingApplication(null);
         }}
         application={viewingApplication}
+        onUpdate={handleUpdateApplication}
       />
 
       {/* Toasts Stack */}

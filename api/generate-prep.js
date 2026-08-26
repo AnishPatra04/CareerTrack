@@ -1,6 +1,3 @@
-import { defineConfig, loadEnv } from 'vite'
-import react from '@vitejs/plugin-react'
-
 const makeGeminiRequest = async (apiKey, prompt, model) => {
   const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const controller = new AbortController();
@@ -70,30 +67,23 @@ const fetchWithRetry = async (apiKey, prompt) => {
   throw lastError || new Error('Failed to fetch response from Gemini API after retrying.');
 };
 
-// A simple dev server middleware to handle API calls locally
-const apiPlugin = () => ({
-  name: 'api-plugin',
-  configureServer(server) {
-    server.middlewares.use(async (req, res, next) => {
-      if (req.url.startsWith('/api/generate-prep') && req.method === 'POST') {
-        let body = '';
-        req.on('data', chunk => {
-          body += chunk;
-        });
-        req.on('end', async () => {
-          try {
-            const jobContext = JSON.parse(body);
-            
-            // Load GEMINI_API_KEY from environment
-            const apiKey = process.env.GEMINI_API_KEY;
-            if (!apiKey || apiKey === 'undefined' || apiKey === 'null') {
-              res.writeHead(500, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: 'GEMINI_API_KEY environment variable is not configured locally. Please create a .env file with GEMINI_API_KEY.' }));
-              return;
-            }
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
 
-            // Construct prompt
-            const prompt = `
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === 'undefined' || apiKey === 'null') {
+    return res.status(500).json({ error: 'GEMINI_API_KEY environment variable is not configured on the server.' });
+  }
+
+  try {
+    const jobContext = req.body;
+    if (!jobContext || !jobContext.company || !jobContext.position) {
+      return res.status(400).json({ error: 'Missing required job context (company or position).' });
+    }
+
+    const prompt = `
 You are an expert AI Career Coach and Interview Prep Assistant.
 Prepare the candidate for their upcoming interview using the following job details:
 - Company: ${jobContext.company}
@@ -128,59 +118,40 @@ You MUST respond ONLY with a JSON object in the following format. Do not wrap th
 }
 `;
 
-            let apiResponse;
-            try {
-              apiResponse = await fetchWithRetry(apiKey, prompt);
-            } catch (retryError) {
-              console.error('All Gemini API attempts failed:', retryError);
-              res.writeHead(503, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: retryError.message || 'Failed to fetch response from Gemini API.' }));
-              return;
-            }
+    let response;
+    try {
+      response = await fetchWithRetry(apiKey, prompt);
+    } catch (retryError) {
+      console.error('All Gemini API attempts failed:', retryError);
+      return res.status(503).json({ error: retryError.message || 'Failed to fetch response from Gemini API.' });
+    }
 
-            const data = await apiResponse.json();
-            const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (!rawText) {
-              res.writeHead(500, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: 'Empty response received from LLM model.' }));
-              return;
-            }
+    const data = await response.json();
+    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) {
+      return res.status(500).json({ error: 'Empty response received from LLM model.' });
+    }
 
-            const parsedData = JSON.parse(rawText.trim());
-            if (
-              typeof parsedData.preparationSummary !== 'string' ||
-              !Array.isArray(parsedData.likelyQuestions) ||
-              !Array.isArray(parsedData.talkingPoints) ||
-              !Array.isArray(parsedData.preparationTips)
-            ) {
-              res.writeHead(520, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: 'AI response did not match the expected structured layout.' }));
-              return;
-            }
+    let parsedData;
+    try {
+      parsedData = JSON.parse(rawText.trim());
+    } catch (parseError) {
+      console.error('Failed to parse model response as JSON:', rawText, parseError);
+      return res.status(500).json({ error: 'LLM returned malformed JSON.' });
+    }
 
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify(parsedData));
-          } catch (err) {
-            console.error('Vite API proxy error:', err);
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Internal Dev Server Error', details: err.message }));
-          }
-        });
-      } else {
-        next();
-      }
-    });
+    if (
+      typeof parsedData.preparationSummary !== 'string' ||
+      !Array.isArray(parsedData.likelyQuestions) ||
+      !Array.isArray(parsedData.talkingPoints) ||
+      !Array.isArray(parsedData.preparationTips)
+    ) {
+      return res.status(520).json({ error: 'AI response did not match the expected structured layout.' });
+    }
+
+    return res.status(200).json(parsedData);
+  } catch (err) {
+    console.error('Serverless function error:', err);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
-});
-
-// https://vite.dev/config/
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
-  if (env.GEMINI_API_KEY) {
-    process.env.GEMINI_API_KEY = env.GEMINI_API_KEY;
-  }
-
-  return {
-    plugins: [react(), apiPlugin()],
-  };
-});
+}

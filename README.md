@@ -29,6 +29,20 @@ To bundle the application for production:
 npm run build
 ```
 
+### AI Interview Prep Assistant Configuration
+
+The **AI Interview Prep Assistant** is integrated directly into the Job Details modal. It generates personalized interview preparation strategies, typical questions, targeted talking points, and custom tips based on the selected application's metadata (company, title, job type, location, and notes).
+
+- **LLM Provider**: Google Gemini (specifically the `gemini-3.7-flash` model).
+- **Environment Variable Name**: `GEMINI_API_KEY`.
+- **Security Architecture**: The API key is managed securely on the server-side.
+  - In development, Vite's dev server middleware (`configureServer` proxy in `vite.config.js`) intercepts `/api/generate-prep` calls and executes the API requests safely inside the Node process, reading the key from `.env` or `.env.local` to prevent client-side exposure.
+  - In production, Vercel routes `/api/generate-prep` requests to the secure node-runtime serverless function in `api/generate-prep.js`, keeping the key isolated.
+- **Setup**: Create a `.env` file in the root directory and specify your key:
+  ```env
+  GEMINI_API_KEY=your_gemini_api_key_here
+  ```
+
 ---
 
 ## AI-Assisted Development & Submission Documentation

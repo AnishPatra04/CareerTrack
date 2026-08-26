@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, CheckCircle2 } from 'lucide-react';
 import EmptyState from './EmptyState';
 
 export default function InterviewsView({ applications, onAddClick }) {

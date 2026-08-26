@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Bell, Monitor, Save, Check } from 'lucide-react';
+import { User, Bell, Monitor, Save } from 'lucide-react';
 
 export default function SettingsView({ userSettings, onSaveSettings, triggerToast }) {
   const [profileName, setProfileName] = useState(userSettings.profileName || '');
@@ -9,7 +9,25 @@ export default function SettingsView({ userSettings, onSaveSettings, triggerToas
   const [interviewReminders, setInterviewReminders] = useState(userSettings.interviewReminders || false);
   const [applicationUpdates, setApplicationUpdates] = useState(userSettings.applicationUpdates || false);
 
-  const [hasChanges, setHasChanges] = useState(false);
+  const [prevUserSettings, setPrevUserSettings] = useState(userSettings);
+  if (userSettings !== prevUserSettings) {
+    setPrevUserSettings(userSettings);
+    setProfileName(userSettings.profileName || '');
+    setProfileEmail(userSettings.profileEmail || '');
+    setTheme(userSettings.theme || 'light');
+    setCompactMode(userSettings.compactMode || false);
+    setInterviewReminders(userSettings.interviewReminders || false);
+    setApplicationUpdates(userSettings.applicationUpdates || false);
+  }
+
+  // Derive changes status inline during render
+  const hasChanges = 
+    profileName !== userSettings.profileName ||
+    profileEmail !== userSettings.profileEmail ||
+    theme !== userSettings.theme ||
+    compactMode !== userSettings.compactMode ||
+    interviewReminders !== userSettings.interviewReminders ||
+    applicationUpdates !== userSettings.applicationUpdates;
 
   // Apply visual settings immediately to body/html
   useEffect(() => {
@@ -34,29 +52,6 @@ export default function SettingsView({ userSettings, onSaveSettings, triggerToas
     };
   }, [theme, compactMode, userSettings]);
 
-  // Sync state if parent state changes (e.g. initial load)
-  useEffect(() => {
-    setProfileName(userSettings.profileName);
-    setProfileEmail(userSettings.profileEmail);
-    setTheme(userSettings.theme);
-    setCompactMode(userSettings.compactMode);
-    setInterviewReminders(userSettings.interviewReminders);
-    setApplicationUpdates(userSettings.applicationUpdates);
-  }, [userSettings]);
-
-  // Track if changes have been made
-  useEffect(() => {
-    const changed = 
-      profileName !== userSettings.profileName ||
-      profileEmail !== userSettings.profileEmail ||
-      theme !== userSettings.theme ||
-      compactMode !== userSettings.compactMode ||
-      interviewReminders !== userSettings.interviewReminders ||
-      applicationUpdates !== userSettings.applicationUpdates;
-      
-    setHasChanges(changed);
-  }, [profileName, profileEmail, theme, compactMode, interviewReminders, applicationUpdates, userSettings]);
-
   const handleSubmit = (e) => {
     e.preventDefault();
     
@@ -80,7 +75,6 @@ export default function SettingsView({ userSettings, onSaveSettings, triggerToas
     });
 
     triggerToast('success', 'Settings Saved', 'Your configuration has been updated successfully!');
-    setHasChanges(false);
   };
 
   return (
@@ -248,22 +242,6 @@ export default function SettingsView({ userSettings, onSaveSettings, triggerToas
         </div>
       </form>
 
-      {/* Inline styles override for pulsing dot indicator */}
-      <style dangerouslySetInnerHTML={{__html: `
-        .pulsing-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background-color: var(--primary);
-          display: inline-block;
-          animation: pulse 1.5s infinite ease-in-out;
-        }
-        @keyframes pulse {
-          0% { transform: scale(0.85); opacity: 0.5; }
-          50% { transform: scale(1.15); opacity: 1; }
-          100% { transform: scale(0.85); opacity: 0.5; }
-        }
-      `}} />
     </div>
   );
 }
